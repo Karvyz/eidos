@@ -1,9 +1,9 @@
-use crate::eidos::Eidos;
-
 mod cli;
 mod eidos;
 mod llm;
 mod note;
+
+use crate::{eidos::Eidos, llm::LLM};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,11 +20,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "Found {} .md file(s) in '{}' (read took {:.2?}):",
-        eidos.len(),
+        eidos.len().await,
         dir_path.display(),
         duration
     );
 
-    println!("\nDone reading all .md files.");
+    let llm = LLM::new();
+    llm.create_note(
+        "Create a new note with a few lines of info of cats",
+        eidos.clone(),
+    )
+    .await;
+    eidos.print_all().await;
+
     Ok(())
 }

@@ -1,11 +1,12 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
-use tokio::fs;
+use tokio::{fs, sync::Mutex};
 
 use crate::note::Note;
 
+#[derive(Clone)]
 pub struct Eidos {
-    notes: Vec<Note>,
+    notes: Arc<Mutex<Vec<Note>>>,
 }
 
 impl Eidos {
@@ -15,11 +16,28 @@ impl Eidos {
         for path in &paths {
             notes.push(Note::read(path).await);
         }
-        Self { notes }
+        Self {
+            notes: Arc::new(Mutex::new(notes)),
+        }
     }
 
-    pub fn len(&self) -> usize {
-        self.notes.len()
+    pub async fn len(&self) -> usize {
+        self.notes.lock().await.len()
+    }
+
+    pub async fn create_note(&self, title: String, content: String) {
+        self.notes.lock().await.push(Note::new(title, content));
+    }
+
+    pub async fn print_all(&self) {
+        let notes = self.notes.lock().await;
+        if notes.is_empty() {
+            println!("No notes found.");
+            return;
+        }
+        for note in notes.iter() {
+            println!("{}", note.display());
+        }
     }
 
     async fn collect_md_files(dir: &PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {
