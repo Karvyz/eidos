@@ -7,9 +7,9 @@ use clap::{Parser, Subcommand};
 #[command(name = "eidos", version, about)]
 #[command(arg_required_else_help = true)]
 pub struct Cli {
-    /// Directory containing .md notes (defaults to current dir)
-    #[arg(short, long, default_value = ".")]
-    pub dir: PathBuf,
+    /// Directory containing .md notes (overrides config vault_path)
+    #[arg(short, long)]
+    pub dir: Option<PathBuf>,
 
     #[command(subcommand)]
     pub command: Option<Commands>,

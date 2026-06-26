@@ -1,4 +1,5 @@
 mod cli;
+mod config;
 mod eidos;
 mod llm;
 mod note;
@@ -7,17 +8,27 @@ use cli::{Commands, parse, validate_directory};
 use colored::*;
 use eidos::Eidos;
 
+use crate::config::Config;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = parse();
 
-    if let Err(e) = validate_directory(&args.dir) {
+    // Load config from XDG path, then resolve vault directory:
+    // CLI --dir overrides config vault_path, which itself defaults to "."
+    let cfg = Config::load();
+    let vault = args
+        .dir
+        .or_else(|| cfg.as_ref().and_then(|c| c.vault_path.clone()))
+        .expect("Vault not configured");
+
+    if let Err(e) = validate_directory(&vault) {
         eprintln!("{} {}", "Error:".red().bold(), e);
         std::process::exit(1);
     }
 
     let start = std::time::Instant::now();
-    let eidos = Eidos::read(&args.dir).await;
+    let eidos = Eidos::read(&vault).await;
     let duration = start.elapsed();
 
     match &args.command {
@@ -33,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "Loaded".dimmed(),
                 format!("{}", eidos.len().await).cyan(),
                 "notes from".dimmed(),
-                args.dir.display().to_string().cyan().underline(),
+                vault.display().to_string().cyan().underline(),
             );
             println!(
                 "{} {:.2?} {}",
