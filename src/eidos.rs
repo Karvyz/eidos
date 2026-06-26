@@ -21,23 +21,32 @@ impl Eidos {
         }
     }
 
+    /// Get a snapshot of all notes.
+    pub async fn notes(&self) -> Vec<Note> {
+        self.notes.lock().await.clone()
+    }
+
+    /// Find a note by title (case-insensitive prefix match).
+    pub async fn find_note(&self, title: &str) -> Option<Note> {
+        let lower = title.to_lowercase();
+        let notes = self.notes.lock().await;
+        notes
+            .iter()
+            .find(|n| n.title().to_lowercase() == lower)
+            .or_else(|| {
+                notes
+                    .iter()
+                    .find(|n| n.title().to_lowercase().starts_with(&lower))
+            })
+            .cloned()
+    }
+
     pub async fn len(&self) -> usize {
         self.notes.lock().await.len()
     }
 
     pub async fn create_note(&self, title: String, content: String) {
         self.notes.lock().await.push(Note::new(title, content));
-    }
-
-    pub async fn print_all(&self) {
-        let notes = self.notes.lock().await;
-        if notes.is_empty() {
-            println!("No notes found.");
-            return;
-        }
-        for note in notes.iter() {
-            println!("{}", note.display());
-        }
     }
 
     async fn collect_md_files(dir: &PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {
