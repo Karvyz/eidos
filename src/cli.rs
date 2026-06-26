@@ -61,7 +61,7 @@ pub async fn repl(eidos: &crate::Eidos) {
     use crate::llm::LLM;
     use colored::*;
 
-    let llm = LLM::new();
+    let llm = LLM::new(eidos);
 
     loop {
         print!("{} ", "eidos>".cyan().bold());
@@ -140,7 +140,7 @@ pub async fn repl(eidos: &crate::Eidos) {
                     continue;
                 }
                 println!("{}", "Thinking...".yellow());
-                let result = llm.create_note(prompt, eidos.clone()).await;
+                let result = llm.create_note(prompt).await;
                 println!("{}", result.dimmed());
             }
             "help" | "h" | "?" => {

@@ -30,7 +30,7 @@ impl Tool for Create {
     const NAME: &'static str = "create";
     type Error = TextError;
     type Args = CreationArgs;
-    type Output = bool;
+    type Output = String;
 
     async fn definition(&self, _prompt: String) -> ToolDefinition {
         ToolDefinition {
@@ -48,8 +48,8 @@ impl Tool for Create {
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
-        println!("Creating a new note");
+        println!("Tool call: Creating note");
         self.eidos.create_note(args.title, args.content).await;
-        Ok(true)
+        Ok("Note created".to_string())
     }
 }

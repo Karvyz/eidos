@@ -107,7 +107,7 @@ async fn cmd_create(eidos: &Eidos, title: &str, content: Option<&[String]>) {
 }
 
 async fn cmd_ask(eidos: &Eidos, prompt: &str) {
-    let llm = crate::llm::LLM::new();
-    let result = llm.create_note(prompt, eidos.clone()).await;
+    let llm = crate::llm::LLM::new(eidos);
+    let result = llm.create_note(prompt).await;
     println!("{}", result);
 }
