@@ -1,35 +1,8 @@
-use rig_core::{
-    client::CompletionClient,
-    completion::{Prompt, ToolDefinition},
-    providers::llamafile,
-    tool::Tool,
-};
+use rig_core::{completion::ToolDefinition, tool::Tool};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::eidos::Eidos;
-
-pub struct LLM {
-    client: llamafile::Client,
-}
-
-impl LLM {
-    pub fn new() -> Self {
-        let client = llamafile::Client::from_url("http://localhost:8080").unwrap();
-
-        Self { client }
-    }
-
-    pub async fn create_note(&self, prompt: &str, eidos: Eidos) -> String {
-        let agent = self
-            .client
-            .agent(llamafile::LLAMA_CPP)
-            .preamble("You are bob.")
-            .tools(vec![Box::new(Create::new(eidos))])
-            .build();
-        agent.prompt(prompt).await.expect("error")
-    }
-}
 
 #[derive(Deserialize)]
 pub(crate) struct CreationArgs {
@@ -75,6 +48,7 @@ impl Tool for Create {
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+        println!("Creating a new note");
         self.eidos.create_note(args.title, args.content).await;
         Ok(true)
     }
