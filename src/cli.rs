@@ -130,7 +130,10 @@ pub async fn repl(eidos: &crate::Eidos) {
                     }
                 }
                 let content = content.trim().to_string();
-                eidos.create_note(title.to_string(), content).await;
+                eidos
+                    .create_note(title.to_string(), content)
+                    .await
+                    .expect("Failed to create note");
                 println!("{}", format!("Created note '{}'.", title).green());
             }
             "ask" => {

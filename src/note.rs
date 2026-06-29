@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use tokio::fs;
 
@@ -6,16 +6,17 @@ use tokio::fs;
 pub struct Note {
     title: String,
     content: String,
-    modified: bool,
 }
 
 impl Note {
-    pub fn new(title: String, content: String) -> Self {
-        Self {
-            title,
-            content,
-            modified: true,
-        }
+    pub async fn new(
+        title: String,
+        content: String,
+        vault: &Path,
+    ) -> Result<(Self, PathBuf), std::io::Error> {
+        let path = vault.join(format!("{}.md", title));
+        fs::write(&path, &content).await?;
+        Ok((Self { title, content }, path))
     }
 
     pub async fn read(path: &PathBuf) -> Self {
@@ -31,11 +32,7 @@ impl Note {
                 String::new()
             }
         };
-        Self {
-            title,
-            content,
-            modified: false,
-        }
+        Self { title, content }
     }
 
     pub fn title(&self) -> &str {

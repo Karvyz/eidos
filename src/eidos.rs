@@ -6,17 +6,19 @@ use crate::note::Note;
 
 #[derive(Clone)]
 pub struct Eidos {
+    vault: PathBuf,
     notes: Arc<Mutex<Vec<Note>>>,
 }
 
 impl Eidos {
-    pub async fn read(path: &PathBuf) -> Self {
+    pub async fn read(vault: PathBuf) -> Self {
         let mut notes = vec![];
-        let paths = Self::collect_md_files(path).await.unwrap_or(vec![]);
+        let paths = Self::collect_md_files(&vault).await.unwrap_or(vec![]);
         for path in &paths {
             notes.push(Note::read(path).await);
         }
         Self {
+            vault,
             notes: Arc::new(Mutex::new(notes)),
         }
     }
@@ -45,8 +47,14 @@ impl Eidos {
         self.notes.lock().await.len()
     }
 
-    pub async fn create_note(&self, title: String, content: String) {
-        self.notes.lock().await.push(Note::new(title, content));
+    pub async fn create_note(
+        &self,
+        title: String,
+        content: String,
+    ) -> Result<PathBuf, std::io::Error> {
+        let (note, path) = Note::new(title, content, &self.vault).await?;
+        self.notes.lock().await.push(note);
+        Ok(path)
     }
 
     async fn collect_md_files(dir: &PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {

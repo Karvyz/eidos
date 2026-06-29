@@ -10,10 +10,6 @@ pub(crate) struct CreationArgs {
     content: String,
 }
 
-#[derive(Debug, thiserror::Error)]
-#[error("Text error")]
-pub(crate) struct TextError;
-
 #[derive(Serialize)]
 pub(crate) struct Create {
     #[serde(skip)]
@@ -28,7 +24,7 @@ impl Create {
 
 impl Tool for Create {
     const NAME: &'static str = "create";
-    type Error = TextError;
+    type Error = std::io::Error;
     type Args = CreationArgs;
     type Output = String;
 
@@ -49,7 +45,12 @@ impl Tool for Create {
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
         println!("Tool call: Creating note");
-        self.eidos.create_note(args.title, args.content).await;
-        Ok("Note created".to_string())
+        match self.eidos.create_note(args.title, args.content).await {
+            Ok(path) => {
+                println!("Note created in {:?}", path);
+                Ok("Note created".to_string())
+            }
+            Err(e) => Err(e),
+        }
     }
 }

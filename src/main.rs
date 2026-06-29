@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let start = std::time::Instant::now();
-    let eidos = Eidos::read(&vault).await;
+    let eidos = Eidos::read(vault.clone()).await;
     let duration = start.elapsed();
 
     match &args.command {
@@ -113,7 +113,10 @@ async fn cmd_create(eidos: &Eidos, title: &str, content: Option<&[String]>) {
             buf.trim().to_string()
         }
     };
-    eidos.create_note(title.to_string(), content).await;
+    eidos
+        .create_note(title.to_string(), content)
+        .await
+        .expect("Failed to create note");
     println!("{}", format!("Created note '{}'.", title).green());
 }
 
