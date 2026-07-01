@@ -23,7 +23,7 @@ impl LLM {
         }
     }
 
-    pub async fn create_note(&self, prompt: &str) -> String {
+    pub async fn ask(&self, prompt: &str) -> String {
         let agent = self
             .client
             .agent(llamafile::LLAMA_CPP)
