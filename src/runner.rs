@@ -25,8 +25,27 @@ pub struct Runner {
 
 impl Runner {
     pub async fn new(vault: PathBuf, commands: Vec<Commands>) -> Self {
-        let eidos = Eidos::read(vault).await;
+        let start = std::time::Instant::now();
+        let eidos = Eidos::read(vault.clone()).await;
+        let duration = start.elapsed();
         let llm = LLM::new(&eidos);
+
+        if commands.is_empty() {
+            println!(
+                "{} {} {} {}",
+                "Loaded".dimmed(),
+                format!("{}", eidos.len().await).cyan(),
+                "notes from".dimmed(),
+                vault.display().to_string().cyan().underline(),
+            );
+            println!(
+                "{} {:.2?} {}",
+                "(read took".dimmed(),
+                duration,
+                ")".dimmed(),
+            );
+        }
+
         Self {
             instructions: commands.into(),
             eidos,
