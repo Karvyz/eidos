@@ -1,10 +1,7 @@
-use std::{
-    collections::VecDeque,
-    io::{self, Write},
-    path::PathBuf,
-};
+use std::{collections::VecDeque, path::PathBuf};
 
 use colored::Colorize;
+use rustyline::{Config, error::ReadlineError};
 
 use crate::{eidos::Eidos, llm::LLM};
 
@@ -21,6 +18,7 @@ pub struct Runner {
     instructions: VecDeque<Commands>,
     eidos: Eidos,
     llm: LLM,
+    rl: rustyline::Editor<(), rustyline::history::FileHistory>,
 }
 
 impl Runner {
@@ -29,6 +27,9 @@ impl Runner {
         let eidos = Eidos::read(vault.clone()).await;
         let duration = start.elapsed();
         let llm = LLM::new(&eidos);
+
+        let config = Config::builder().edit_mode(rustyline::EditMode::Vi).build();
+        let rl = rustyline::DefaultEditor::with_config(config).unwrap();
 
         if commands.is_empty() {
             println!(
@@ -50,6 +51,7 @@ impl Runner {
             instructions: commands.into(),
             eidos,
             llm,
+            rl,
         }
     }
 
@@ -68,114 +70,97 @@ impl Runner {
                     Commands::None => (),
                 }
             }
-            self.instructions.push_back(self.parse().await)
+            let command = self.parse().await;
+            self.instructions.push_back(command)
         }
     }
 
-    async fn parse(&self) -> Commands {
-        print!("{} ", "eidos>".cyan().bold());
-        io::stdout().flush().ok();
-        let mut line = String::new();
-        match io::stdin().read_line(&mut line) {
-            Ok(0) | Err(_) => return Commands::Exit { verbose: false }, // EOF or error → exit
-            Ok(_) if line.trim().is_empty() => return Commands::None,
-            Ok(_) => {}
-        }
+    async fn parse(&mut self) -> Commands {
+        let readline = self.rl.readline(&format!("{} ", ">>".cyan().bold()));
+        match readline {
+            Ok(line) => {
+                // self.rl.add_history_entry(line.as_str())?;
 
-        let line = line.trim();
-        let parts: Vec<&str> = line.splitn(2, ' ').collect();
-        let cmd = parts[0];
-        let arg = parts.get(1).map(|s| s.trim());
+                let line = line.trim().to_string();
+                let parts: Vec<&str> = line.splitn(2, ' ').collect();
+                let cmd = parts[0];
+                let arg = parts.get(1).map(|s| s.trim());
 
-        match cmd {
-            "list" | "ls" => Commands::List,
-            "read" | "cat" => {
-                let title = arg.unwrap_or("").to_string();
-                match title.is_empty() {
-                    true => {
-                        println!("{}", "Usage: read <title>".red());
-                        Commands::None
-                    }
-                    false => Commands::Display { title },
-                }
-            }
-            "create" | "new" => {
-                let title = arg.unwrap_or("").to_string();
-                if title.is_empty() {
-                    println!("{}", "Usage: create <title>".red());
-                    return Commands::None;
-                }
-                println!("{} (Ctrl+D to finish):", "Enter content".green());
-                let mut content = String::new();
-                use std::io::{self, BufRead};
-                for line_result in io::stdin().lock().lines() {
-                    match line_result {
-                        Ok(l) => {
-                            content.push_str(&l);
-                            content.push('\n');
+                match cmd {
+                    ":list" | ":ls" => Commands::List,
+                    ":read" | ":cat" => {
+                        let title = arg.unwrap_or("").to_string();
+                        match title.is_empty() {
+                            true => {
+                                println!("{}", "Usage: read <title>".red());
+                                Commands::None
+                            }
+                            false => Commands::Display { title },
                         }
-                        Err(_) => break,
                     }
-                }
-                let content = content.trim().to_string();
-                Commands::Create { title, content }
-            }
-            "ask" => {
-                let prompt = arg.unwrap_or("").to_string();
-                match prompt.is_empty() {
-                    true => {
-                        println!("{}", "Usage: ask <prompt>".red());
+                    ":create" | ":new" | ":c" => {
+                        let title = arg.unwrap_or("").to_string();
+                        if title.is_empty() {
+                            println!("{}", format!("Usage: {cmd} <title>").red());
+                            return Commands::None;
+                        }
+                        println!("{} (Ctrl+D to finish):", "Enter content".green());
+                        let mut content = String::new();
+                        use std::io::{self, BufRead};
+                        for line_result in io::stdin().lock().lines() {
+                            match line_result {
+                                Ok(l) => {
+                                    content.push_str(&l);
+                                    content.push('\n');
+                                }
+                                Err(_) => break,
+                            }
+                        }
+                        let content = content.trim().to_string();
+                        Commands::Create { title, content }
+                    }
+                    ":help" | ":h" | ":?" => {
+                        println!("{}", "Commands:".bold());
+                        println!(
+                            "  {}  {}  {}",
+                            ":list".cyan(),
+                            "(:ls)".dimmed(),
+                            "List all notes".dimmed()
+                        );
+                        println!(
+                            "  {}  {}  {}",
+                            ":read <title>".cyan(),
+                            "(:cat)".dimmed(),
+                            "Read a note".dimmed()
+                        );
+                        println!(
+                            "  {}  {}  {}",
+                            ":create <title>".cyan(),
+                            "(:new)".dimmed(),
+                            "Create a note".dimmed()
+                        );
+                        println!(
+                            "  {}  {}          {}",
+                            ":help".cyan(),
+                            "(:h/:?)".dimmed(),
+                            "Show this help".dimmed()
+                        );
+                        println!(
+                            "  {}  {}          {}",
+                            ":quit".cyan(),
+                            "(:q)".dimmed(),
+                            "Exit".dimmed()
+                        );
                         Commands::None
                     }
-                    false => Commands::Ask { prompt },
+                    ":quit" | ":q" | ":exit" => Commands::Exit { verbose: true },
+                    _ => Commands::Ask { prompt: line },
                 }
             }
-            "help" | "h" | "?" => {
-                println!("{}", "Commands:".bold());
-                println!(
-                    "  {}  {}  {}",
-                    "list".cyan(),
-                    "(ls)".dimmed(),
-                    "List all notes".dimmed()
-                );
-                println!(
-                    "  {}  {}  {}",
-                    "read <title>".cyan(),
-                    "(cat)".dimmed(),
-                    "Read a note".dimmed()
-                );
-                println!(
-                    "  {}  {}  {}",
-                    "create <title>".cyan(),
-                    "(new)".dimmed(),
-                    "Create a note".dimmed()
-                );
-                println!(
-                    "  {}  {}  {}",
-                    "ask <prompt>".cyan(),
-                    "".dimmed(),
-                    "Ask the LLM to create notes".dimmed()
-                );
-                println!(
-                    "  {}  {}          {}",
-                    "help".cyan(),
-                    "(h/?)".dimmed(),
-                    "Show this help".dimmed()
-                );
-                println!(
-                    "  {}  {}          {}",
-                    "quit".cyan(),
-                    "(q)".dimmed(),
-                    "Exit".dimmed()
-                );
-                Commands::None
-            }
-            "quit" | "q" | "exit" => Commands::Exit { verbose: true },
-            _ => {
-                println!(
-                    "{}",
-                    format!("Unknown command '{}'. Type 'help' for commands.", cmd).red()
-                );
+            Err(ReadlineError::Interrupted) => Commands::None,
+            Err(ReadlineError::Eof) => Commands::Exit { verbose: true },
+            Err(err) => {
+                println!("Error: {:?}", err);
                 Commands::None
             }
         }
