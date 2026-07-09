@@ -6,6 +6,7 @@ use rustyline::{Config, error::ReadlineError};
 use crate::{eidos::Eidos, llm::LLM};
 
 pub enum Commands {
+    New,
     Ask { prompt: String },
     List,
     Display { title: String },
@@ -59,6 +60,7 @@ impl Runner {
         loop {
             while let Some(instruction) = self.instructions.pop_front() {
                 match instruction {
+                    Commands::New => self.llm.new_agent(),
                     Commands::Ask { prompt } => self.ask(prompt).await,
                     Commands::List => self.list().await,
                     Commands::Display { title } => self.display(title).await,
@@ -87,6 +89,7 @@ impl Runner {
                 let arg = parts.get(1).map(|s| s.trim());
 
                 match cmd {
+                    ":new" | ":n" => Commands::New,
                     ":list" | ":ls" => Commands::List,
                     ":read" | ":cat" => {
                         let title = arg.unwrap_or("").to_string();
@@ -98,7 +101,7 @@ impl Runner {
                             false => Commands::Display { title },
                         }
                     }
-                    ":create" | ":new" | ":c" => {
+                    ":create" | ":c" => {
                         let title = arg.unwrap_or("").to_string();
                         if title.is_empty() {
                             println!("{}", format!("Usage: {cmd} <title>").red());
@@ -136,7 +139,7 @@ impl Runner {
                         println!(
                             "  {}  {}  {}",
                             ":create <title>".cyan(),
-                            "(:new)".dimmed(),
+                            "(:c)".dimmed(),
                             "Create a note".dimmed()
                         );
                         println!(
