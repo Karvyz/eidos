@@ -422,6 +422,7 @@ dependencies = [
  "clap",
  "colored",
  "dirs",
+ "futures",
  "reqwest",
  "rig-core",
  "rustyline",

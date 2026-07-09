@@ -170,8 +170,7 @@ impl Runner {
     }
 
     async fn ask(&self, prompt: String) {
-        let response = self.llm.ask(&prompt).await;
-        println!("{}", response);
+        self.llm.ask(&prompt).await;
     }
 
     async fn list(&self) {

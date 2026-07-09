@@ -1,9 +1,10 @@
+use futures::StreamExt;
 use rig_core::{
-    agent::{Agent, stream_to_stdout},
+    agent::{Agent, MultiTurnStreamItem, Text},
     client::CompletionClient,
     memory::InMemoryConversationMemory,
     providers::llamafile::{Client, CompletionModel, LLAMA_CPP},
-    streaming::StreamingPrompt,
+    streaming::{StreamedAssistantContent, StreamingPrompt},
 };
 
 use crate::{
@@ -50,12 +51,29 @@ impl LLM {
             .build()
     }
 
-    pub async fn ask(&self, prompt: &str) -> String {
-        let mut stream = self.agent.stream_prompt(prompt).await;
-        let res = stream_to_stdout(&mut stream).await;
-        match res {
-            Ok(r) => r.response().to_string(),
-            Err(e) => e.to_string(),
+    pub async fn ask(&self, prompt: &str) {
+        let mut stream = self.agent.stream_prompt(prompt).conversation("conv").await;
+        while let Some(content) = stream.next().await {
+            match content {
+                Ok(MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
+                    Text { text, .. },
+                ))) => {
+                    print!("{text}");
+                    std::io::Write::flush(&mut std::io::stdout()).unwrap();
+                }
+                Ok(MultiTurnStreamItem::StreamAssistantItem(
+                    StreamedAssistantContent::Reasoning(reasoning),
+                )) => {
+                    let reasoning = reasoning.display_text();
+                    print!("{reasoning}");
+                    std::io::Write::flush(&mut std::io::stdout()).unwrap();
+                }
+                Ok(MultiTurnStreamItem::FinalResponse(_)) => println!(),
+                Err(err) => {
+                    eprintln!("Error: {err}");
+                }
+                _ => {}
+            };
         }
     }
 }
